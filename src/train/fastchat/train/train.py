@@ -60,11 +60,12 @@ class ModelArguments:
 
 
 @dataclass
-class DataArguments:
+class  DataArguments:
     data_path: str = field(
         default=None, metadata={"help": "Path to the training data."}
     )
     lazy_preprocess: bool = False
+    template_name: str = "ie_as_qa"
 
 
 @dataclass
@@ -193,8 +194,9 @@ def tokenize(tokenizer, prompt, add_special_tokens=False):
 def preprocess2(
     sources,
     tokenizer: transformers.PreTrainedTokenizer,
+    template_name: str
 ) -> Dict:
-    conv = get_conversation_template("ie_as_qa")
+    conv = get_conversation_template(template_name)
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
 
     input_ids, labels = [], []
@@ -287,12 +289,12 @@ def preprocess2(
 class SupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer):
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str):
         super(SupervisedDataset, self).__init__()
 
         rank0_print("Formatting inputs...")
         sources = [example["conversations"] for example in raw_data]
-        data_dict = preprocess2(sources, tokenizer)
+        data_dict = preprocess2(sources, tokenizer, template_name)
 
         self.input_ids = data_dict["input_ids"]
         self.labels = data_dict["labels"]
@@ -312,9 +314,10 @@ class SupervisedDataset(Dataset):
 class LazySupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer):
+    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
+        self.template_name = template_name
 
         rank0_print("Formatting inputs...Skip in lazy mode")
         self.tokenizer = tokenizer
@@ -328,7 +331,7 @@ class LazySupervisedDataset(Dataset):
         if i in self.cached_data_dict:
             return self.cached_data_dict[i]
 
-        ret = preprocess2([self.raw_data[i]["conversations"]], self.tokenizer)
+        ret = preprocess2([self.raw_data[i]["conversations"]], self.tokenizer, self.template_name)
         ret = dict(
             input_ids=ret["input_ids"][0],
             labels=ret["labels"][0],
@@ -340,7 +343,7 @@ class LazySupervisedDataset(Dataset):
 
 
 def make_supervised_data_module(
-    tokenizer: transformers.PreTrainedTokenizer, data_args
+    tokenizer: transformers.PreTrainedTokenizer, data_args: DataArguments
 ) -> Dict:
     """Make dataset and collator for supervised fine-tuning."""
     dataset_cls = (
@@ -359,8 +362,8 @@ def make_supervised_data_module(
     eval_raw_data = [raw_data[i] for i in eval_indices]
     rank0_print(f"#train {len(train_raw_data)}, #eval {len(eval_raw_data)}")
 
-    train_dataset = dataset_cls(train_raw_data, tokenizer=tokenizer)
-    eval_dataset = dataset_cls(eval_raw_data, tokenizer=tokenizer)
+    train_dataset = dataset_cls(train_raw_data, tokenizer=tokenizer, template_name=data_args.template_name)
+    eval_dataset = dataset_cls(eval_raw_data, tokenizer=tokenizer, template_name=data_args.template_name)
     return dict(train_dataset=train_dataset, eval_dataset=eval_dataset)
 
 
