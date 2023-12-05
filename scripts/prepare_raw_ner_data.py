@@ -94,7 +94,7 @@ def main(input_file_path: str, output_file_path: str, lang: str, ns: bool) -> No
         for line in tqdm(f_in):
             raw_sample = json.loads(line)
             prepared_sample = convert_raw_sample(raw_sample, prompts, negative_entities)
-            print(json.dumps(prepared_sample), file=f_out)
+            print(json.dumps(prepared_sample, ensure_ascii=False), file=f_out)
 
 
 if __name__ == "__main__":

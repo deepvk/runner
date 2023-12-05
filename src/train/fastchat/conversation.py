@@ -466,7 +466,7 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="ie_as_qa_ru",
-        system="Ты виртуальный ассистент, который отвечает на вопросы пользователя на основе переданного текста",
+        system="Ты виртуальный ассистент, который отвечает на вопросы пользователя на основе переданного текста.",
         roles=("USER", "ASSISTANT"),
         messages=(),
         offset=0,
