@@ -1,11 +1,20 @@
-MODEL=yahma/llama-7b-hf
-DATA=./train.json
+#!/bin/bash
 
-mkdir -p saved_models
+if [ $# -lt 2 ]; then
+  echo "Usage: train.sh <DATASET_PATH> <OUTPUT_DIR>"
+  exit
+fi
+
+MODEL=deepvk/llama-3b-sft
+DATA=$1
+OUTPUT_DIR=$2-$(date -d "today" +"%Y-%m-%d_%H-%M")
+
+export WANDB_PROJECT="runner"
+
 torchrun --nproc_per_node=8 --master_port=20001 fastchat/train/train_mem.py \
     --model_name_or_path ${MODEL}  \
     --data_path ${DATA} \
-    --run_name universalner \
+    --run_name runner \
     --bf16 True \
     --output_dir saved_models/universalner \
     --dataloader_num_workers 8 \
@@ -27,5 +36,7 @@ torchrun --nproc_per_node=8 --master_port=20001 fastchat/train/train_mem.py \
     --fsdp_config ./fsdp_config.json \
     --tf32 True \
     --model_max_length 1024 \
-    --gradient_checkpointing True \
-    --lazy_preprocess True
+    --gradient_checkpointing False \
+    --lazy_preprocess True \
+    --template_name "ie_as_qa_ru" \
+    --output_dir ${OUTPUT_DIR}

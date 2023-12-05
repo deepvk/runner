@@ -31,22 +31,19 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-import copy
-from dataclasses import dataclass, field
 import json
 import pathlib
-from typing import Dict, Optional, Sequence
-
 import random
+from dataclasses import dataclass, field
+from typing import Dict, Optional
 
 import numpy as np
 import torch
-from torch.utils.data import Dataset
 import transformers
-from transformers import Trainer, LlamaTokenizer
+from torch.distributed.fsdp import FullStateDictConfig, FullyShardedDataParallel as FSDP, StateDictType
+from torch.utils.data import Dataset
+from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer
 from transformers.trainer_pt_utils import LabelSmoother
-from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
-from torch.distributed.fsdp import StateDictType, FullStateDictConfig
 
 from fastchat.conversation import SeparatorStyle
 from fastchat.model.model_adapter import get_conversation_template
@@ -331,7 +328,7 @@ class LazySupervisedDataset(Dataset):
         if i in self.cached_data_dict:
             return self.cached_data_dict[i]
 
-        ret = preprocess2([self.raw_data[i]["conversations"]], self.tokenizer, self.template_name)
+        ret = preprocess2([self.raw_data[i]], self.tokenizer, self.template_name)
         ret = dict(
             input_ids=ret["input_ids"][0],
             labels=ret["labels"][0],
@@ -350,7 +347,9 @@ def make_supervised_data_module(
         LazySupervisedDataset if data_args.lazy_preprocess else SupervisedDataset
     )
     rank0_print("Loading data...")
-    raw_data = json.load(open(data_args.data_path, "r"))
+    with open(data_args.data_path, "r") as f_in:
+        raw_data = [json.loads(it) for it in f_in]
+    # raw_data = json.load(open(data_args.data_path, "r"))
 
     # Split train/test
     np.random.seed(3)
@@ -375,12 +374,12 @@ def train():
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     local_rank = training_args.local_rank
-    model = transformers.AutoModelForCausalLM.from_pretrained(
+    model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
     )
     model.config.use_cache = False
-    tokenizer = LlamaTokenizer.from_pretrained(
+    tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path,
         cache_dir=training_args.cache_dir,
         model_max_length=training_args.model_max_length,
