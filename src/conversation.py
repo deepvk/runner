@@ -1,3 +1,18 @@
+# Adopted from lm-sys@FastChat. We add our new ie-as-qa prompting template. Below is the original copyright:
+#    Copyright 2023 Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan Zhuang, Zhanghao Wu, Yonghao Zhuang, Zi Lin, Zhuohan Li, Dacheng Li, Eric. P Xing, Hao Zhang, Joseph E. Gonzalez, Ion Stoica
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 """
 Conversation prompt templates.
 """
@@ -188,7 +203,7 @@ conv_templates: Dict[str, Conversation] = {}
 def register_conv_template(template: Conversation, override: bool = False):
     """Register a new conversation template."""
     if not override:
-        assert template.name not in conv_templates, f"{template.name} has been registered."
+        assert template.name not in conv_templates, f"{name} has been registered."
     conv_templates[template.name] = template
 
 
@@ -334,10 +349,16 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="rwkv",
-        system="",
+        system="The following is a coherent verbose detailed conversation between Bob and Alice.\n\n",
         roles=("Bob", "Alice"),
-        messages=(),
-        offset=0,
+        messages=(
+            ("Bob", "Hi"),
+            (
+                "Alice",
+                "Hi. I am your assistant and I will answer all questions. Please feel free to ask any question and I will always answer it.",
+            ),
+        ),
+        offset=2,
         sep_style=SeparatorStyle.RWKV,
         sep="",
         stop_str="\n\n",
@@ -430,7 +451,22 @@ register_conv_template(
 register_conv_template(
     Conversation(
         name="ie_as_qa",
-        system="A virtual assistant answers questions from a user based on the provided text.",
+        system="A virtual assistant answers questions from a user based on the provided paragraph.",
+        roles=("USER", "ASSISTANT"),
+        messages=(),
+        offset=0,
+        sep_style=SeparatorStyle.ADD_COLON_TWO,
+        sep=" ",
+        sep2="</s>",
+    )
+)
+
+
+# ie-as-qa template
+register_conv_template(
+    Conversation(
+        name="ie_as_qa_ru",
+        system="Ты виртуальный ассистент, который отвечает на вопросы пользователя на основе переданного текста.",
         roles=("USER", "ASSISTANT"),
         messages=(),
         offset=0,
@@ -442,9 +478,15 @@ register_conv_template(
 
 
 if __name__ == "__main__":
-    conv = get_conv_template("ie_as_qa")
-    conv.append_message(conv.roles[0], "Hello!")
-    conv.append_message(conv.roles[1], "Hi!")
-    conv.append_message(conv.roles[0], "How are you?")
+    conv = get_conv_template("ie_as_qa_ru")
+    conv.append_message(conv.roles[0], "Text: The growth in use of credit and debit cards has been met with a rise in fraud and theft. "
+                                       "To improve the customer experience, merchants often relax security standards during transactions. "
+                                       "As an example, a merchant may require only a credit card number, expiration date, and security code, "
+                                       "but not evidence of possession of the actual credit card before allowing a transaction. As a result, "
+                                       "a user may possess the physical credit card even though information associated with the credit card has been stolen.")
+    conv.append_message(conv.roles[1], "I've read this text.")
+    conv.append_message(conv.roles[0], "What describes product in the text?")
+    conv.append_message(conv.roles[1], "[\"debit cards\", \"actual credit card\"]")
+    conv.append_message(conv.roles[0], "What describes profession in the text?")
     conv.append_message(conv.roles[1], None)
     print(conv.get_prompt())

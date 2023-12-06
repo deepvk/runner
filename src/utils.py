@@ -1,7 +1,7 @@
 from .conversation import get_conv_template
 
 def preprocess_instance(source):
-    conv = get_conv_template("ie_as_qa")
+    conv = get_conv_template("ie_as_qa_ru")
     for j, sentence in enumerate(source):
         value = sentence['value']
         if j == len(source) - 1:

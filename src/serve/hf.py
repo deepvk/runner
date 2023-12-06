@@ -4,6 +4,7 @@ from transformers import pipeline
 
 from ..utils import preprocess_instance
 
+
 def main(
     model_path: str = "Universal-NER/UniNER-7B-type",
     max_new_tokens: int = 256,
@@ -18,7 +19,12 @@ def main(
         if not text:
             print("Exit...")
             break
-        example = {"conversations": [{"from": "human", "value": f"Text: {text}"}, {"from": "gpt", "value": "I've read this text."}, {"from": "human", "value": f"What describes {entity_type} in the text?"}, {"from": "gpt", "value": "[]"}]}
+        example = {"conversations": [
+            {"from": "human", "value": f"Текст: {text}"},
+            {"from": "gpt", "value": "Я прочитала текст."},
+            {"from": "human", "value": f"Что описывает \"{entity_type}\" в тексте?"},
+            {"from": "gpt", "value": None}
+        ]}
         prompt = preprocess_instance(example['conversations'])
         outputs = generator(prompt, max_length=max_new_tokens, return_full_text=False)
         print(outputs[0]['generated_text'])
