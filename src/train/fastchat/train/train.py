@@ -40,7 +40,11 @@ from typing import Dict, Optional
 import numpy as np
 import torch
 import transformers
-from torch.distributed.fsdp import FullStateDictConfig, FullyShardedDataParallel as FSDP, StateDictType
+from torch.distributed.fsdp import (
+    FullStateDictConfig,
+    FullyShardedDataParallel as FSDP,
+    StateDictType,
+)
 from torch.utils.data import Dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer
 from transformers.trainer_pt_utils import LabelSmoother
@@ -57,7 +61,7 @@ class ModelArguments:
 
 
 @dataclass
-class  DataArguments:
+class DataArguments:
     data_path: str = field(
         default=None, metadata={"help": "Path to the training data."}
     )
@@ -98,6 +102,7 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: st
         cpu_state_dict = model.state_dict()
         if trainer.args.should_save:
             trainer._save(output_dir, state_dict=cpu_state_dict)  # noqa
+
 
 def preprocess(
     sources,
@@ -189,9 +194,7 @@ def tokenize(tokenizer, prompt, add_special_tokens=False):
 
 
 def preprocess2(
-    sources,
-    tokenizer: transformers.PreTrainedTokenizer,
-    template_name: str
+    sources, tokenizer: transformers.PreTrainedTokenizer, template_name: str
 ) -> Dict:
     conv = get_conversation_template(template_name)
     roles = {"human": conv.roles[0], "gpt": conv.roles[1]}
@@ -201,7 +204,6 @@ def preprocess2(
         if roles[source[0]["from"]] != conv.roles[0]:
             # Skip the first one if it is not from human
             source = source[1:]
-        
 
         conv_input_ids, conv_targets = [], []
 
@@ -250,8 +252,8 @@ def preprocess2(
             conv_input_ids += [tokenizer.pad_token_id] * pad_length
             conv_targets += [IGNORE_TOKEN_ID] * pad_length
 
-        input_ids.append(conv_input_ids[:tokenizer.model_max_length])
-        labels.append(conv_targets[:tokenizer.model_max_length])
+        input_ids.append(conv_input_ids[: tokenizer.model_max_length])
+        labels.append(conv_targets[: tokenizer.model_max_length])
 
         if False:
             cur_user_ids, cur_gpt_ids = [], []
@@ -286,7 +288,9 @@ def preprocess2(
 class SupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str):
+    def __init__(
+        self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str
+    ):
         super(SupervisedDataset, self).__init__()
 
         rank0_print("Formatting inputs...")
@@ -311,7 +315,9 @@ class SupervisedDataset(Dataset):
 class LazySupervisedDataset(Dataset):
     """Dataset for supervised fine-tuning."""
 
-    def __init__(self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str):
+    def __init__(
+        self, raw_data, tokenizer: transformers.PreTrainedTokenizer, template_name: str
+    ):
         super(LazySupervisedDataset, self).__init__()
         self.tokenizer = tokenizer
         self.template_name = template_name
@@ -361,8 +367,14 @@ def make_supervised_data_module(
     eval_raw_data = [raw_data[i] for i in eval_indices]
     rank0_print(f"#train {len(train_raw_data)}, #eval {len(eval_raw_data)}")
 
-    train_dataset = dataset_cls(train_raw_data, tokenizer=tokenizer, template_name=data_args.template_name)
-    eval_dataset = dataset_cls(eval_raw_data, tokenizer=tokenizer, template_name=data_args.template_name)
+    rank0_print(f"Using {data_args.template_name} template for conversation")
+    train_dataset = dataset_cls(
+        train_raw_data, tokenizer=tokenizer, template_name=data_args.template_name
+    )
+    eval_dataset = dataset_cls(
+        eval_raw_data, tokenizer=tokenizer, template_name=data_args.template_name
+    )
+    rank0_print(f"Train example:\n{train_dataset[0]}")
     return dict(train_dataset=train_dataset, eval_dataset=eval_dataset)
 
 
@@ -397,6 +409,7 @@ def train():
         trainer.train(resume_from_checkpoint=True)
     else:
         trainer.train()
+    trainer.evaluate()
     trainer.save_state()
     safe_save_model_for_hf_trainer(trainer=trainer, output_dir=training_args.output_dir)
 
