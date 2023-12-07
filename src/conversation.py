@@ -479,14 +479,17 @@ register_conv_template(
 
 if __name__ == "__main__":
     conv = get_conv_template("ie_as_qa_ru")
-    conv.append_message(conv.roles[0], "Text: The growth in use of credit and debit cards has been met with a rise in fraud and theft. "
-                                       "To improve the customer experience, merchants often relax security standards during transactions. "
-                                       "As an example, a merchant may require only a credit card number, expiration date, and security code, "
-                                       "but not evidence of possession of the actual credit card before allowing a transaction. As a result, "
-                                       "a user may possess the physical credit card even though information associated with the credit card has been stolen.")
+    conv.append_message(
+        conv.roles[0],
+        "Text: The growth in use of credit and debit cards has been met with a rise in fraud and theft. "
+        "To improve the customer experience, merchants often relax security standards during transactions. "
+        "As an example, a merchant may require only a credit card number, expiration date, and security code, "
+        "but not evidence of possession of the actual credit card before allowing a transaction. As a result, "
+        "a user may possess the physical credit card even though information associated with the credit card has been stolen.",
+    )
     conv.append_message(conv.roles[1], "I've read this text.")
     conv.append_message(conv.roles[0], "What describes product in the text?")
-    conv.append_message(conv.roles[1], "[\"debit cards\", \"actual credit card\"]")
+    conv.append_message(conv.roles[1], '["debit cards", "actual credit card"]')
     conv.append_message(conv.roles[0], "What describes profession in the text?")
     conv.append_message(conv.roles[1], None)
     print(conv.get_prompt())
